@@ -1,0 +1,13 @@
+com\minijudge\model\Submission.class
+com\minijudge\util\DebugJudge.class
+com\minijudge\util\SeedData.class
+com\minijudge\dao\SubmissionDAO.class
+com\minijudge\util\DBConnection.class
+com\minijudge\model\Problem.class
+com\minijudge\util\CreateTables.class
+com\minijudge\judge\JudgeEngine.class
+com\minijudge\util\TestDB.class
+com\minijudge\util\FixTestCases.class
+com\minijudge\App.class
+com\minijudge\dao\ProblemDAO.class
+com\minijudge\dao\TestCaseDAO.class
