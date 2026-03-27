@@ -26,6 +26,7 @@ import com.minijudge.model.Submission;
 import java.util.List;
 import java.io.*;
 import java.nio.file.*;
+import java.util.Optional;
 
 public class App extends Application {
 
@@ -121,19 +122,16 @@ public class App extends Application {
         return navbar;
     }
 
-    // ── Monaco Editor Integration (VS Code Engine) ────────────
     private WebView createMonacoEditor(String initialCode, String language) {
         WebView webView = new WebView();
         WebEngine engine = webView.getEngine();
-        webView.setContextMenuEnabled(false); // Disables default browser menu
+        webView.setContextMenuEnabled(false);
         VBox.setVgrow(webView, Priority.ALWAYS);
 
-        // Escape characters so JS doesn't break when loading the string
         String safeCode = initialCode.replace("\\", "\\\\")
                                      .replace("`", "\\`")
                                      .replace("$", "\\$");
 
-        // Map languages correctly for Monaco
         String langMode = language.toLowerCase();
         if (langMode.equals("c++")) langMode = "cpp";
 
@@ -153,8 +151,6 @@ public class App extends Application {
                 <script>
                     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
                     require(['vs/editor/editor.main'], function() {
-                        
-                        // Define custom dark theme matching DStrA Judge
                         monaco.editor.defineTheme('dstra-dark', {
                             base: 'vs-dark',
                             inherit: true,
@@ -170,7 +166,7 @@ public class App extends Application {
                             language: '%s',
                             theme: 'dstra-dark',
                             automaticLayout: true,
-                            minimap: { enabled: false }, // Turn off minimap to save space
+                            minimap: { enabled: false },
                             fontSize: 15,
                             fontFamily: 'Consolas, Courier New, monospace',
                             scrollBeyondLastLine: false,
@@ -179,9 +175,18 @@ public class App extends Application {
                         });
                     });
                     
-                    // Function called by Java to extract current code
-                    function getCode() { 
-                        return window.editor ? window.editor.getValue() : ""; 
+                    function getCode() { return window.editor ? window.editor.getValue() : ""; }
+                    function setCode(newCode) { if (window.editor) window.editor.setValue(newCode); }
+                    function formatCode() { if (window.editor) window.editor.getAction('editor.action.formatDocument').run(); }
+                    function toggleSuggestions(enable) {
+                        if (window.editor) {
+                            window.editor.updateOptions({
+                                quickSuggestions: enable,
+                                suggestOnTriggerCharacters: enable,
+                                wordBasedSuggestions: enable ? 'all' : 'off',
+                                parameterHints: { enabled: enable }
+                            });
+                        }
                     }
                 </script>
             </body>
@@ -201,34 +206,54 @@ public class App extends Application {
 
         VBox hero = new VBox(12);
         hero.setAlignment(Pos.CENTER);
-        hero.setPadding(new Insets(60, 50, 50, 50));
+        hero.setPadding(new Insets(40, 50, 30, 50));
         hero.setStyle("-fx-background-color: " + BG_DARK + ";");
 
         Label heroTitle = new Label("🚀 Coding Challenges");
-        heroTitle.setFont(Font.font(FONT_UI, FontWeight.BOLD, 36));
+        heroTitle.setFont(Font.font(FONT_UI, FontWeight.BOLD, 32));
         heroTitle.setTextFill(Color.web(TEXT_PRIMARY));
 
-        Label heroSub = new Label("Master your skills with curated problems. Test your code instantly.");
-        heroSub.setFont(Font.font(FONT_UI, 15));
-        heroSub.setTextFill(Color.web(TEXT_MUTED));
-
         List<Problem> problems = problemDAO.getAllProblems();
-        long easy   = problems.stream().filter(p -> p.getDifficulty().equals("Easy")).count();
-        long medium = problems.stream().filter(p -> p.getDifficulty().equals("Medium")).count();
-        long hard   = problems.stream().filter(p -> p.getDifficulty().equals("Hard")).count();
+        
+        // ── Search & Filter Bar ──
+        HBox filterBar = new HBox(12);
+        filterBar.setAlignment(Pos.CENTER);
+        filterBar.setPadding(new Insets(20, 0, 10, 0));
+        filterBar.setMaxWidth(1100);
 
-        HBox stats = new HBox(16);
-        stats.setAlignment(Pos.CENTER);
-        stats.setPadding(new Insets(20, 0, 0, 0));
-        stats.getChildren().addAll(
-            makeStatChip(String.valueOf(problems.size()), "Total", ACCENT_BLUE),
-            makeStatChip(String.valueOf(easy),   "Easy",   ACCENT_GREEN),
-            makeStatChip(String.valueOf(medium), "Medium", ACCENT_AMBER),
-            makeStatChip(String.valueOf(hard),   "Hard",   ACCENT_RED)
+        TextField searchField = new TextField();
+        searchField.setPromptText("🔍 Search by title or #tag...");
+        searchField.setFont(Font.font(FONT_UI, 14));
+        searchField.setPrefWidth(400);
+        searchField.setStyle(
+            "-fx-background-color: " + BG_ELEVATED + ";" +
+            "-fx-text-fill: " + TEXT_PRIMARY + ";" +
+            "-fx-prompt-text-fill: " + TEXT_MUTED + ";" +
+            "-fx-border-color: " + BORDER + ";" +
+            "-fx-border-radius: 8;" +
+            "-fx-background-radius: 8;" +
+            "-fx-padding: 10 16;"
         );
 
-        hero.getChildren().addAll(heroTitle, heroSub, stats);
+        ToggleGroup diffGroup = new ToggleGroup();
+        HBox diffToggles = new HBox(6);
+        diffToggles.setAlignment(Pos.CENTER);
+        
+        ToggleButton btnAll = createFilterToggle("All", diffGroup, true);
+        ToggleButton btnEasy = createFilterToggle("Easy", diffGroup, false);
+        ToggleButton btnMed = createFilterToggle("Medium", diffGroup, false);
+        ToggleButton btnHard = createFilterToggle("Hard", diffGroup, false);
+        
+        diffToggles.getChildren().addAll(btnAll, btnEasy, btnMed, btnHard);
+        
+        Region filterSpacer = new Region();
+        HBox.setHgrow(filterSpacer, Priority.ALWAYS);
+        
+        filterBar.getChildren().addAll(searchField, filterSpacer, diffToggles);
 
+        hero.getChildren().addAll(heroTitle, filterBar);
+
+        // ── List Container ──
         VBox listContainer = new VBox(0);
         listContainer.setMaxWidth(1100); 
         listContainer.setAlignment(Pos.CENTER);
@@ -251,14 +276,49 @@ public class App extends Application {
         Label hTime = makeHeaderLabel("Limit", COL_LIMIT_WIDTH);
 
         header.getChildren().addAll(hNum, titleCol, hTags, hDiff, hTime);
-        listContainer.getChildren().add(header);
 
-        for (int i = 0; i < problems.size(); i++) {
-            Problem p = problems.get(i);
-            HBox row = makeProblemRow(p, i);
-            listContainer.getChildren().add(row);
-            fadeIn(row, i * 40);
-        }
+        // Function to refresh list based on filters
+        Runnable applyFilters = () -> {
+            listContainer.getChildren().clear();
+            listContainer.getChildren().add(header);
+            
+            String query = searchField.getText().toLowerCase().trim();
+            ToggleButton selectedDiff = (ToggleButton) diffGroup.getSelectedToggle();
+            String diffFilter = selectedDiff == null ? "All" : selectedDiff.getText();
+            
+            int displayCount = 0;
+            for (int i = 0; i < problems.size(); i++) {
+                Problem p = problems.get(i);
+                
+                boolean matchesSearch = query.isEmpty() || 
+                                        p.getTitle().toLowerCase().contains(query) || 
+                                        (p.getTags() != null && p.getTags().toLowerCase().contains(query));
+                
+                boolean matchesDiff = diffFilter.equals("All") || p.getDifficulty().equals(diffFilter);
+                
+                if (matchesSearch && matchesDiff) {
+                    HBox row = makeProblemRow(p, i);
+                    listContainer.getChildren().add(row);
+                    fadeIn(row, displayCount * 30);
+                    displayCount++;
+                }
+            }
+            
+            if (displayCount == 0) {
+                Label noRes = new Label("No problems found.");
+                noRes.setFont(Font.font(FONT_UI, 14));
+                noRes.setTextFill(Color.web(TEXT_MUTED));
+                noRes.setPadding(new Insets(40));
+                listContainer.getChildren().add(noRes);
+            }
+        };
+
+        // Attach listeners
+        searchField.textProperty().addListener((obs, oldVal, newVal) -> applyFilters.run());
+        diffGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> applyFilters.run());
+
+        // Initial render
+        applyFilters.run();
 
         ScrollPane scroll = new ScrollPane(wrapper);
         scroll.setFitToWidth(true);
@@ -270,6 +330,31 @@ public class App extends Application {
         root.setCenter(scroll);
 
         mainScene.setRoot(root);
+        
+        // Auto-focus search field
+        Platform.runLater(searchField::requestFocus);
+    }
+
+    private ToggleButton createFilterToggle(String text, ToggleGroup group, boolean selected) {
+        ToggleButton btn = new ToggleButton(text);
+        btn.setToggleGroup(group);
+        btn.setSelected(selected);
+        btn.setFont(Font.font(FONT_UI, FontWeight.BOLD, 12));
+        
+        String baseStyle = "-fx-background-color: " + BG_ELEVATED + "; -fx-text-fill: " + TEXT_MUTED + "; -fx-cursor: hand; -fx-background-radius: 20; -fx-padding: 6 16;";
+        String selectedStyle = "-fx-background-color: " + ACCENT_BLUE + "; -fx-text-fill: #ffffff; -fx-cursor: hand; -fx-background-radius: 20; -fx-padding: 6 16;";
+        
+        btn.setStyle(selected ? selectedStyle : baseStyle);
+        
+        btn.selectedProperty().addListener((obs, wasSelected, isNowSelected) -> {
+            if (isNowSelected) {
+                btn.setStyle(selectedStyle);
+            } else {
+                btn.setStyle(baseStyle);
+            }
+        });
+        
+        return btn;
     }
 
     private HBox makeProblemRow(Problem p, int index) {
@@ -404,6 +489,8 @@ public class App extends Application {
         VBox rightPanel = new VBox(0);
         rightPanel.setStyle("-fx-background-color: " + BG_DARK + ";");
 
+        WebView monacoView = createMonacoEditor(codeContent, "java");
+
         HBox editorBar = new HBox(12);
         editorBar.setPadding(new Insets(10, 16, 10, 16));
         editorBar.setAlignment(Pos.CENTER_LEFT);
@@ -417,10 +504,44 @@ public class App extends Application {
         langLabel.setFont(Font.font(FONT_UI, FontWeight.BOLD, 13));
         langLabel.setTextFill(Color.web(TEXT_PRIMARY));
 
-        editorBar.getChildren().addAll(langIcon, langLabel);
+        Region toolSpacer = new Region();
+        HBox.setHgrow(toolSpacer, Priority.ALWAYS);
 
-        // -- Load Monaco Editor WebView --
-        WebView monacoView = createMonacoEditor(codeContent, "java");
+        CheckBox suggestToggle = new CheckBox("Autocomplete");
+        suggestToggle.setSelected(true);
+        suggestToggle.setFont(Font.font(FONT_UI, 12));
+        suggestToggle.setStyle("-fx-text-fill: " + TEXT_MUTED + "; -fx-cursor: hand; -fx-padding: 0 10 0 0;");
+        suggestToggle.setTooltip(new Tooltip("Enable/Disable intelligent code suggestions"));
+        suggestToggle.setOnAction(e -> {
+            boolean enabled = suggestToggle.isSelected();
+            monacoView.getEngine().executeScript("toggleSuggestions(" + enabled + ")");
+        });
+
+        Button formatBtn = createToolbarButton("✨ Format");
+        formatBtn.setTooltip(new Tooltip("Auto-format document"));
+        formatBtn.setOnAction(e -> monacoView.getEngine().executeScript("formatCode()"));
+
+        Button resetBtn = createToolbarButton("🔄 Reset");
+        resetBtn.setTooltip(new Tooltip("Restore to original boilerplate code"));
+        resetBtn.setOnAction(e -> {
+            Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+            alert.setTitle("Reset Code");
+            alert.setHeaderText("Reset to Boilerplate?");
+            alert.setContentText("This will erase all your current code. Continue?");
+            
+            DialogPane dialogPane = alert.getDialogPane();
+            dialogPane.setStyle("-fx-background-color: " + BG_CARD + "; -fx-text-fill: white;");
+            dialogPane.lookup(".content.label").setStyle("-fx-text-fill: " + TEXT_MUTED + ";");
+            dialogPane.lookup(".header-panel").setStyle("-fx-background-color: " + BG_SURFACE + ";");
+
+            Optional<ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == ButtonType.OK) {
+                String safeTemplate = getTemplate("Java").replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$");
+                monacoView.getEngine().executeScript("setCode(`" + safeTemplate + "`)");
+            }
+        });
+
+        editorBar.getChildren().addAll(langIcon, langLabel, toolSpacer, suggestToggle, formatBtn, resetBtn);
 
         HBox submitBar = new HBox(14);
         submitBar.setPadding(new Insets(16, 24, 16, 24));
@@ -434,7 +555,6 @@ public class App extends Application {
 
         Button runBtn = createStyledButton("▶ Run Code", BG_ELEVATED, TEXT_PRIMARY, BORDER_LIGHT);
         runBtn.setOnAction(e -> {
-            // Fetch code from JS
             String currentCode = (String) monacoView.getEngine().executeScript("getCode()");
             showRunDialog(currentCode);
         });
@@ -447,7 +567,6 @@ public class App extends Application {
             statusLabel.setText("Running test cases...");
             statusLabel.setTextFill(Color.web(ACCENT_AMBER));
 
-            // Fetch code from JS
             String code = (String) monacoView.getEngine().executeScript("getCode()");
             if (code == null || code.isEmpty() || code.equals("Loading...")) {
                 statusLabel.setText("Error: Editor not fully loaded.");
@@ -741,6 +860,28 @@ public class App extends Application {
             );
         });
         
+        return btn;
+    }
+
+    private Button createToolbarButton(String text) {
+        Button btn = new Button(text);
+        btn.setFont(Font.font(FONT_UI, 12));
+        btn.setStyle("-fx-background-color: transparent; -fx-text-fill: " + TEXT_MUTED + "; -fx-cursor: hand; -fx-padding: 4 8 4 8;");
+        
+        btn.setOnMouseEntered(e -> btn.setStyle(
+            "-fx-background-color: " + BG_ELEVATED + ";" +
+            "-fx-text-fill: " + TEXT_PRIMARY + ";" +
+            "-fx-cursor: hand;" +
+            "-fx-background-radius: 4;" +
+            "-fx-padding: 4 8 4 8;"
+        ));
+        
+        btn.setOnMouseExited(e -> btn.setStyle(
+            "-fx-background-color: transparent;" +
+            "-fx-text-fill: " + TEXT_MUTED + ";" +
+            "-fx-cursor: hand;" +
+            "-fx-padding: 4 8 4 8;"
+        ));
         return btn;
     }
 
