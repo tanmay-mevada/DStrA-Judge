@@ -15,15 +15,15 @@ public class ProblemDAO {
         String sql = "SELECT * FROM problems ORDER BY problem_id";
 
         try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                Statement stmt = conn.createStatement();
+                ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 problems.add(mapRow(rs));
             }
 
         } catch (SQLException e) {
-            System.err.println("❌ getAllProblems failed: " + e.getMessage());
+            System.err.println("getAllProblems failed: " + e.getMessage());
         }
         return problems;
     }
@@ -33,14 +33,15 @@ public class ProblemDAO {
         String sql = "SELECT * FROM problems WHERE problem_id = ?";
 
         try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, id);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) return mapRow(rs);
+            if (rs.next())
+                return mapRow(rs);
 
         } catch (SQLException e) {
-            System.err.println("❌ getProblemById failed: " + e.getMessage());
+            System.err.println("getProblemById failed: " + e.getMessage());
         }
         return null;
     }
@@ -48,12 +49,12 @@ public class ProblemDAO {
     // Insert a new problem
     public boolean insertProblem(Problem p) {
         String sql = """
-            INSERT INTO problems (title, statement, difficulty, time_limit_ms, memory_limit_mb, tags)
-            VALUES (?, ?, ?, ?, ?, ?)
-            """;
+                INSERT INTO problems (title, statement, difficulty, time_limit_ms, memory_limit_mb, tags)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """;
 
         try (Connection conn = DBConnection.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setString(1, p.getTitle());
             ps.setString(2, p.getStatement());
@@ -64,7 +65,7 @@ public class ProblemDAO {
             return ps.executeUpdate() > 0;
 
         } catch (SQLException e) {
-            System.err.println("❌ insertProblem failed: " + e.getMessage());
+            System.err.println("insertProblem failed: " + e.getMessage());
         }
         return false;
     }
@@ -72,13 +73,12 @@ public class ProblemDAO {
     // Helper to map a ResultSet row to a Problem object
     private Problem mapRow(ResultSet rs) throws SQLException {
         return new Problem(
-            rs.getInt("problem_id"),
-            rs.getString("title"),
-            rs.getString("statement"),
-            rs.getString("difficulty"),
-            rs.getInt("time_limit_ms"),
-            rs.getInt("memory_limit_mb"),
-            rs.getString("tags")
-        );
+                rs.getInt("problem_id"),
+                rs.getString("title"),
+                rs.getString("statement"),
+                rs.getString("difficulty"),
+                rs.getInt("time_limit_ms"),
+                rs.getInt("memory_limit_mb"),
+                rs.getString("tags"));
     }
 }
