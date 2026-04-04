@@ -1,4 +1,4 @@
-# Mini Online Judge
+# DStrA Judge
 
 A desktop-based competitive programming platform built with Java, JavaFX, and PostgreSQL. Students can browse coding problems, write solutions in a built-in code editor, and receive instant automated verdicts by compiling and running their code against hidden test cases in real time — bringing the core LeetCode experience to a standalone Java desktop app.
 
@@ -51,7 +51,7 @@ All Java library dependencies (JavaFX, HikariCP, PostgreSQL JDBC driver, etc.) a
 ## Project Structure
 
 ```
-mini-online-judge/
+DStrA-Judge/
 ├── src/
 │   └── main/
 │       ├── java/com/minijudge/
@@ -84,8 +84,8 @@ mini-online-judge/
 ### Step 1 - Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/mini-online-judge.git
-cd mini-online-judge
+git clone https://github.com/yourusername/DStrA-Judge.git
+cd DStrA-Judge
 ```
 
 ### Step 2 - Set up the database
@@ -215,9 +215,15 @@ This is a simplified academic version of an online judge. The following features
 
 ---
 
-## Author
+## Authors
 
 Built as an Innovative Assignment for the Java Programming course.
+
+| Name | GitHub |
+|------|--------|
+| Tanmay Mevada | https://github.com/tanmay-mevada |
+| Urvi Ladhani | https://github.com/Urvi-Ladhani |
+| Archie Patel | https://github.com/ampatel05 |
 
 ---
 
